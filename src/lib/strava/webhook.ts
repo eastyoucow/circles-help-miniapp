@@ -1,6 +1,4 @@
 import { timingSafeEqual } from "node:crypto";
-import { User } from "@/lib/db/entities/user.entity";
-import { getDataSource } from "@/lib/db/connection";
 
 export type StravaWebhookEvent = {
   object_type: "activity" | "athlete";
@@ -91,39 +89,8 @@ export function parseStravaWebhookEvent(
   };
 }
 
-function isStravaAccessRevoked(event: StravaWebhookEvent): boolean {
-  const authorized = event.updates?.authorized;
-  return (
-    event.object_type === "athlete" &&
-    (authorized === "false" || authorized === false)
-  );
-}
-
 export async function processStravaWebhookEvent(
-  event: StravaWebhookEvent,
+  _event: StravaWebhookEvent,
 ): Promise<void> {
-  const dataSource = await getDataSource();
-  const users = dataSource.getRepository(User);
-  const athleteId = String(event.owner_id);
-  const user = await users.findOne({
-    where: { stravaAthleteId: athleteId },
-  });
-
-  if (!user) {
-    return;
-  }
-
-  if (isStravaAccessRevoked(event)) {
-    await users.remove(user);
-    return;
-  }
-
-  if (event.object_type === "activity" && event.aspect_type === "create") {
-    // Telegram notification will use user.telegramUserId once the bot is wired.
-    console.info("strava activity created", {
-      athleteId,
-      activityId: event.object_id,
-      telegramUserId: user.telegramUserId,
-    });
-  }
+  // Activity notifications and access-revoke handling (e.g. isDeleted) come later.
 }
