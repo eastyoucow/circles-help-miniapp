@@ -3,7 +3,9 @@ import { config } from "dotenv";
 import * as pg from "pg";
 import type { DataSourceOptions } from "typeorm";
 import { requiredEnv } from "../env";
+import { Activity } from "./entities/activity.entity";
 import { User } from "./entities/user.entity";
+import { CreateActivities1786908000000 } from "./migrations/1786908000000-CreateActivities";
 import { CreateUsers1786882695159 } from "./migrations/1786882695159-CreateUsers";
 
 if (existsSync(".env.local")) {
@@ -58,8 +60,8 @@ export function getDataSourceOptions(): DataSourceOptions {
       connectionTimeoutMillis: 10_000,
       max: 4,
     },
-    entities: [User],
-    migrations: [CreateUsers1786882695159],
+    entities: [User, Activity],
+    migrations: [CreateUsers1786882695159, CreateActivities1786908000000],
     migrationsTableName: "typeorm_migrations",
     synchronize: false,
     logging: process.env.TYPEORM_LOGGING === "true",

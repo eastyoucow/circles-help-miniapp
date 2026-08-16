@@ -53,7 +53,7 @@ npm install
 npm run migration:run
 ```
 
-This creates `typeorm_migrations` (TypeORM’s bookkeeping table) and applies anything not yet recorded, including `CreateUsers`.
+This creates `typeorm_migrations` (TypeORM’s bookkeeping table) and applies anything not yet recorded, including `CreateUsers` and `CreateActivities`.
 
 Check status:
 
@@ -101,6 +101,7 @@ npm run migration:revert
 - Put migrations in `src/lib/db/migrations/`.
 - Use snake_case column names in Postgres (`telegram_user_id`) and camelCase on the entity (`telegramUserId`).
 - Store Telegram and Strava ids as `bigint` in SQL and `string` in TypeScript.
+- Store activity distance in meters (`double precision`) and `moving_time` in seconds (`integer`).
 - Never put secrets in a migration file.
 
 ## Troubleshooting
