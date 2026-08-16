@@ -78,7 +78,11 @@ https://<your-vercel-domain>/api/strava/oauth/callback
 
 The callback exchanges the code, encrypts tokens, and inserts or updates the `users` row keyed by Telegram user id.
 
-In the [Strava API settings](https://www.strava.com/settings/api), set **Authorization Callback Domain** to the Vercel host only (`your-app.vercel.app`, no `https://` and no path). Set `STRAVA_OAUTH_REDIRECT_URI` to the full callback URL above. `TOKEN_ENCRYPTION_KEY` must be 32 bytes (64-char hex or base64).
+In the [Strava API settings](https://www.strava.com/settings/api), set **Authorization Callback Domain** to the Vercel host only (`your-app.vercel.app`, no `https://` and no path). Set `STRAVA_OAUTH_REDIRECT_URI` to the full callback URL above.
+
+`TOKEN_ENCRYPTION_KEY` should be a long secret (64-char hex is best). Other values are hashed to a 32-byte key.
+
+On Vercel, set `DATABASE_*` to the Supabase **session pooler** (port **5432**, user `postgres.<project-ref>`). The direct `db.<project-ref>.supabase.co` host is IPv6-only on many projects and Vercel cannot reach it. Run migrations from your laptop against the direct host; see [docs/migrations.md](docs/migrations.md).
 
 The Mini App must be opened inside Telegram so `initData` is present.
 

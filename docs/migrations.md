@@ -114,8 +114,19 @@ Keep SSL on (do not set `DATABASE_SSL=false` against Supabase).
 **Migration hangs or `must be owner of table`**  
 Use the direct connection (port 5432), not the transaction pooler (6543). Use the `postgres` role (or another role that owns the tables).
 
-**IPv6 timeout on some networks**  
-In Supabase, use the **session pooler** on port **5432** (not 6543) if the direct host is unreachable. Still avoid 6543 for migrations.
+**IPv6 timeout on some networks / Vercel “Could not save the Strava connection”**  
+The direct host (`db.<project-ref>.supabase.co`) is IPv6-only on many Supabase projects. Vercel serverless cannot open that connection, so OAuth succeeds at Strava and then fails while saving the user.
+
+For the **deployed app**, use the **session pooler** on port **5432** (not 6543):
+
+| Field | Example |
+|---|---|
+| Host | `aws-0-<region>.pooler.supabase.com` |
+| Port | `5432` |
+| User | `postgres.<project-ref>` |
+| Database | `postgres` |
+
+Still use the **direct** host for `npm run migration:run`. Avoid port 6543 (transaction pooler) for TypeORM.
 
 **Generate produced an empty or huge diff**  
 Confirm you applied existing migrations first (`npm run migration:show`). Confirm new entities are listed in `data-source.ts`.
