@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import {
+  SESSION_COOKIE_NAME,
+  createSessionValue,
+  sessionCookieOptions,
+} from "@/lib/auth/session";
+import {
   getOAuthPublicCode,
   readOAuthState,
   saveStravaUser,
@@ -43,5 +48,11 @@ export async function GET(request: Request) {
     return redirectHome(request, publicCode);
   }
 
-  return redirectHome(request, "connected");
+  const response = NextResponse.redirect(new URL("/stats", request.url));
+  response.cookies.set(
+    SESSION_COOKIE_NAME,
+    createSessionValue(telegramUserId),
+    sessionCookieOptions(),
+  );
+  return response;
 }

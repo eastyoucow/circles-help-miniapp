@@ -76,7 +76,9 @@ See [Strava webhooks](https://developers.strava.com/docs/webhooks/).
 https://<your-vercel-domain>/api/strava/oauth/callback
 ```
 
-The callback exchanges the code, encrypts tokens, and inserts or updates the `users` row keyed by Telegram user id.
+The callback exchanges the code, encrypts tokens, and inserts or updates the `users` row keyed by Telegram user id. On success it sets a short-lived session cookie and redirects to `/stats`.
+
+The home page calls `GET /api/me` with Telegram `initData`. If a linked user exists, **Link Strava** is replaced by **My Stats**, which opens `/stats`. That page calls `GET /api/athlete`, which uses the stored tokens to request Strava `GET /api/v3/athlete` and shows `firstname`, `lastname`, and `profile`.
 
 In the [Strava API settings](https://www.strava.com/settings/api), set **Authorization Callback Domain** to the Vercel host only (`your-app.vercel.app`, no `https://` and no path). Set `STRAVA_OAUTH_REDIRECT_URI` to the full callback URL above.
 
@@ -92,8 +94,9 @@ The Mini App must be opened inside Telegram so `initData` is present.
 docs/migrations.md  How to create and apply TypeORM migrations
 public/             Static assets (logo)
 src/app/            Mini App routes and Route Handlers
-src/app/api/        Server APIs (Strava webhook and OAuth)
+src/app/api/        Server APIs (`/me`, `/athlete`, Strava webhook and OAuth)
+src/app/stats/      Athlete landing after Strava is linked
 src/lib/db/         TypeORM data source, entities, migrations
-src/lib/strava/     Strava webhook and OAuth helpers
+src/lib/strava/     Strava webhook, OAuth, and athlete helpers
 src/lib/telegram/   Telegram initData verification
 ```

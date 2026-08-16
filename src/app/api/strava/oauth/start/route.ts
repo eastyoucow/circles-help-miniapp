@@ -1,27 +1,9 @@
 import { NextResponse } from "next/server";
 import { buildStravaAuthorizeUrl, createOAuthState } from "@/lib/strava/oauth";
+import { readTelegramInitData } from "@/lib/telegram/read-init-data";
 import { verifyTelegramInitData } from "@/lib/telegram/init-data";
 
 export const runtime = "nodejs";
-
-function readInitData(request: Request, body: unknown): string | null {
-  const authorization = request.headers.get("authorization");
-  if (authorization?.toLowerCase().startsWith("tma ")) {
-    const fromHeader = authorization.slice(4).trim();
-    if (fromHeader) {
-      return fromHeader;
-    }
-  }
-
-  if (body && typeof body === "object" && "initData" in body) {
-    const initData = (body as { initData?: unknown }).initData;
-    if (typeof initData === "string" && initData.trim()) {
-      return initData.trim();
-    }
-  }
-
-  return null;
-}
 
 export async function POST(request: Request) {
   let body: unknown = null;
@@ -31,7 +13,7 @@ export async function POST(request: Request) {
     body = null;
   }
 
-  const initData = readInitData(request, body);
+  const initData = readTelegramInitData(request, body);
   if (!initData) {
     return NextResponse.json(
       { error: "Telegram initData is required." },

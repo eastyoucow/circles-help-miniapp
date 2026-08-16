@@ -1,23 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import styles from "./page.module.css";
-
-function getTelegramInitData(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  return window.Telegram?.WebApp?.initData?.trim() ?? "";
-}
+import { getTelegramInitData } from "./telegram-web-app";
 
 export function LinkStravaButton() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    window.Telegram?.WebApp?.ready();
-    window.Telegram?.WebApp?.expand();
-  }, []);
 
   async function onClick() {
     setError(null);
