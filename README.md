@@ -9,7 +9,7 @@ The Mini App UI, Strava OAuth, Telegram/Strava webhooks, and server APIs will li
 - Next.js 16 (App Router) on Vercel
 - TypeScript
 - CSS Modules
-- PostgreSQL on Supabase (not wired up yet)
+- TypeORM + PostgreSQL on Supabase
 
 ## Local development
 
@@ -26,6 +26,8 @@ npm run build
 ```
 
 Copy `.env.example` to `.env.local` when you start adding secrets. Do not commit real tokens.
+
+Database schema is managed with TypeORM. See [docs/migrations.md](docs/migrations.md) to create and apply migrations against Supabase.
 
 ## Deploy on Vercel
 
@@ -46,6 +48,8 @@ Hobby is enough for OAuth callbacks and webhooks. Do not use long polling or lon
 ## Project layout
 
 ```
-public/           Static assets (logo)
-src/app/          Mini App routes and Route Handlers
+docs/migrations.md  How to create and apply TypeORM migrations
+public/             Static assets (logo)
+src/app/            Mini App routes and Route Handlers
+src/lib/db/         TypeORM data source, entities, migrations
 ```
