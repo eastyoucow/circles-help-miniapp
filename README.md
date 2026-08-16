@@ -29,12 +29,17 @@ Copy `.env.example` to `.env.local` when you start adding secrets. Do not commit
 
 ## Deploy on Vercel
 
-Vercel detects Next.js automatically. No `vercel.json` or custom server is required.
+This repo includes `vercel.json` so Vercel uses the **Next.js** framework, not a static `public` folder.
 
 1. Import this GitHub repository at [vercel.com/new](https://vercel.com/new).
-2. Keep the defaults: Framework **Next.js**, build `next build`, output left empty.
+2. In Project Settings → Build and Deployment:
+   - Framework Preset: **Next.js**
+   - Build Command: `next build` (or leave the default)
+   - Output Directory: leave empty — **do not set `public`**
 3. Add environment variables from `.env.example` when they exist.
 4. Deploy.
+
+If you already created the project with Output Directory `public`, turn that override off and redeploy. Next.js writes to `.next`; Vercel serves that itself. A `public/` folder would only hold static assets, not the app build.
 
 Hobby is enough for OAuth callbacks and webhooks. Do not use long polling or long-running workers on Vercel.
 
