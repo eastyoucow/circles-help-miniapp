@@ -47,6 +47,16 @@
   color: #ffffff;
 }
 
+.about {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0a2540;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

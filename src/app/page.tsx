@@ -1,7 +1,9 @@
 import Image from "next/image";
 import styles from "./page.module.css";
 
-const DONATE_URL = "https://lc.cx/circles-help";
+const DONATE_URL =
+  "https://payments.evoca.am/en/redirect/06B9FD02-032D-4956-A0A3-A2ED9352C409?v3=1660078599694900&a=0";
+const ABOUT_URL = "https://lc.cx/circles-help";
 
 export default function Home() {
   return (
@@ -26,6 +28,14 @@ export default function Home() {
           rel="noopener noreferrer"
         >
           Donate
+        </a>
+        <a
+          className={styles.about}
+          href={ABOUT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          About us
         </a>
       </div>
     </main>
