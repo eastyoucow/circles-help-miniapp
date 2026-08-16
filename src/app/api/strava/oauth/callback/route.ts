@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     return redirectHome(request, publicCode);
   }
 
-  const response = NextResponse.redirect(new URL("/stats", request.url));
+  const response = NextResponse.redirect(new URL("/dashboard", request.url));
   response.cookies.set(
     SESSION_COOKIE_NAME,
     createSessionValue(telegramUserId),

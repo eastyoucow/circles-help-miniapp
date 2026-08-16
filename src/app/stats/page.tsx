@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { StatsView } from "./StatsView";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "My Stats · Circles Help",
-};
-
-export default function StatsPage() {
-  return <StatsView />;
+export default function StatsRedirect() {
+  redirect("/dashboard");
 }
