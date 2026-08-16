@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { LinkStravaButton } from "./LinkStravaButton";
+import { HomeActions } from "./HomeActions";
 import styles from "./page.module.css";
 
 const DONATE_URL =
@@ -55,30 +55,11 @@ export default async function Home({ searchParams }: HomeProps) {
         className={styles.logo}
         priority
       />
-      <div className={styles.actions}>
-        {status ? (
-          <p className={status.ok ? styles.statusOk : styles.statusError}>
-            {status.text}
-          </p>
-        ) : null}
-        <LinkStravaButton />
-        <a
-          className={`${styles.button} ${styles.donate}`}
-          href={DONATE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Donate
-        </a>
-        <a
-          className={styles.about}
-          href={ABOUT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          About us
-        </a>
-      </div>
+      <HomeActions
+        status={status}
+        donateUrl={DONATE_URL}
+        aboutUrl={ABOUT_URL}
+      />
     </main>
   );
 }
