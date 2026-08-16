@@ -6,6 +6,7 @@ import { requiredEnv } from "../env";
 import { Activity } from "./entities/activity.entity";
 import { User } from "./entities/user.entity";
 import { CreateActivities1786908000000 } from "./migrations/1786908000000-CreateActivities";
+import { AddUserProfileImageUrl1786912000000 } from "./migrations/1786912000000-AddUserProfileImageUrl";
 import { CreateUsers1786882695159 } from "./migrations/1786882695159-CreateUsers";
 
 if (existsSync(".env.local")) {
@@ -61,7 +62,11 @@ export function getDataSourceOptions(): DataSourceOptions {
       max: 4,
     },
     entities: [User, Activity],
-    migrations: [CreateUsers1786882695159, CreateActivities1786908000000],
+    migrations: [
+      CreateUsers1786882695159,
+      CreateActivities1786908000000,
+      AddUserProfileImageUrl1786912000000,
+    ],
     migrationsTableName: "typeorm_migrations",
     synchronize: false,
     logging: process.env.TYPEORM_LOGGING === "true",

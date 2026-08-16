@@ -207,7 +207,13 @@ async function requestAthlete(
 export async function fetchStravaAthlete(
   user: User,
 ): Promise<StravaAthleteProfile> {
-  return withStravaUserToken(user, requestAthlete);
+  const athlete = await withStravaUserToken(user, requestAthlete);
+  const imageUrl = (athlete.profile ?? "").trim().slice(0, 2048);
+  if (imageUrl && imageUrl !== user.profileImageUrl) {
+    user.profileImageUrl = imageUrl;
+    await saveUser(user);
+  }
+  return athlete;
 }
 
 function parseActivityId(value: unknown): string | null {
