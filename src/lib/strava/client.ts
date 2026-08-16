@@ -5,6 +5,7 @@ import { requiredEnv } from "@/lib/env";
 
 const STRAVA_TOKEN_URL = "https://www.strava.com/api/v3/oauth/token";
 const STRAVA_ATHLETE_URL = "https://www.strava.com/api/v3/athlete";
+const STRAVA_ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities";
 const REFRESH_SKEW_MS = 2 * 60 * 1000;
 
 export type StravaAthleteProfile = {
@@ -23,6 +24,31 @@ type StravaAthleteResponse = {
   firstname?: string;
   lastname?: string;
   profile?: string;
+};
+
+export type StravaActivitySummary = {
+  id: string;
+  title: string;
+};
+
+export type StravaActivityDetails = {
+  id: string;
+  title: string;
+  description: string;
+  activityDate: Date;
+  distance: number;
+  movingTime: number;
+  workoutType: number | null;
+};
+
+type StravaActivityResponse = {
+  id?: number;
+  name?: string;
+  description?: string | null;
+  start_date?: string;
+  distance?: number;
+  moving_time?: number;
+  workout_type?: number | null;
 };
 
 export class StravaApiError extends Error {
@@ -75,20 +101,47 @@ async function refreshStravaTokens(refreshToken: string): Promise<{
   };
 }
 
+async function persistRefreshedTokens(
+  user: User,
+  refreshed: Awaited<ReturnType<typeof refreshStravaTokens>>,
+): Promise<string> {
+  user.stravaAccessTokenEncrypted = encryptSecret(refreshed.accessToken);
+  user.stravaRefreshTokenEncrypted = encryptSecret(refreshed.refreshToken);
+  user.stravaTokenExpiresAt = refreshed.expiresAt;
+  await saveUser(user);
+  return refreshed.accessToken;
+}
+
 export async function getValidStravaAccessToken(user: User): Promise<string> {
   const expiresAt = user.stravaTokenExpiresAt.getTime();
   if (expiresAt - REFRESH_SKEW_MS > Date.now()) {
     return decryptSecret(user.stravaAccessTokenEncrypted);
   }
 
-  const refreshed = await refreshStravaTokens(
-    decryptSecret(user.stravaRefreshTokenEncrypted),
+  return persistRefreshedTokens(
+    user,
+    await refreshStravaTokens(decryptSecret(user.stravaRefreshTokenEncrypted)),
   );
-  user.stravaAccessTokenEncrypted = encryptSecret(refreshed.accessToken);
-  user.stravaRefreshTokenEncrypted = encryptSecret(refreshed.refreshToken);
-  user.stravaTokenExpiresAt = refreshed.expiresAt;
-  await saveUser(user);
-  return refreshed.accessToken;
+}
+
+export async function withStravaUserToken<T>(
+  user: User,
+  fn: (accessToken: string) => Promise<T>,
+): Promise<T> {
+  try {
+    return await fn(await getValidStravaAccessToken(user));
+  } catch (error) {
+    if (!(error instanceof StravaApiError) || error.status !== 401) {
+      throw error;
+    }
+    const accessToken = await persistRefreshedTokens(
+      user,
+      await refreshStravaTokens(
+        decryptSecret(user.stravaRefreshTokenEncrypted),
+      ),
+    );
+    return fn(accessToken);
+  }
 }
 
 async function requestAthlete(
@@ -124,21 +177,115 @@ async function requestAthlete(
 export async function fetchStravaAthlete(
   user: User,
 ): Promise<StravaAthleteProfile> {
-  const accessToken = await getValidStravaAccessToken(user);
-  try {
-    return await requestAthlete(accessToken);
-  } catch (error) {
-    if (!(error instanceof StravaApiError) || error.status !== 401) {
-      throw error;
-    }
+  return withStravaUserToken(user, requestAthlete);
+}
 
-    const refreshed = await refreshStravaTokens(
-      decryptSecret(user.stravaRefreshTokenEncrypted),
-    );
-    user.stravaAccessTokenEncrypted = encryptSecret(refreshed.accessToken);
-    user.stravaRefreshTokenEncrypted = encryptSecret(refreshed.refreshToken);
-    user.stravaTokenExpiresAt = refreshed.expiresAt;
-    await saveUser(user);
-    return requestAthlete(refreshed.accessToken);
+function parseActivityId(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
   }
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    return value;
+  }
+  return null;
+}
+
+function mapActivitySummary(body: StravaActivityResponse): StravaActivitySummary | null {
+  const id = parseActivityId(body.id);
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    title: (body.name ?? "").trim(),
+  };
+}
+
+function mapActivityDetails(body: StravaActivityResponse): StravaActivityDetails | null {
+  const summary = mapActivitySummary(body);
+  const startDate = body.start_date ? new Date(body.start_date) : null;
+  const distance = Number(body.distance);
+  const movingTime = Number(body.moving_time);
+  if (
+    !summary ||
+    !startDate ||
+    Number.isNaN(startDate.getTime()) ||
+    !Number.isFinite(distance) ||
+    !Number.isFinite(movingTime) ||
+    movingTime < 0
+  ) {
+    return null;
+  }
+
+  return {
+    id: summary.id,
+    title: summary.title.slice(0, 255) || "Activity",
+    description: (body.description ?? "").trim(),
+    activityDate: startDate,
+    distance,
+    movingTime: Math.round(movingTime),
+    workoutType:
+      typeof body.workout_type === "number" && Number.isInteger(body.workout_type)
+        ? body.workout_type
+        : null,
+  };
+}
+
+async function stravaGetJson(
+  accessToken: string,
+  url: string,
+): Promise<{ ok: boolean; status: number; body: unknown }> {
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (response.status === 401) {
+    throw new StravaApiError("Strava access token was rejected.", 401);
+  }
+
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    throw new StravaApiError("Strava response was not JSON.", 502);
+  }
+
+  return { ok: response.ok, status: response.status, body };
+}
+
+export async function listAthleteActivities(
+  accessToken: string,
+  options: { after: number; page: number; perPage: number },
+): Promise<StravaActivitySummary[]> {
+  const url = new URL(STRAVA_ACTIVITIES_URL);
+  url.searchParams.set("after", String(options.after));
+  url.searchParams.set("page", String(options.page));
+  url.searchParams.set("per_page", String(options.perPage));
+
+  const { ok, body } = await stravaGetJson(accessToken, url.toString());
+  if (!ok || !Array.isArray(body)) {
+    throw new StravaApiError("Strava activity list request failed.", 502);
+  }
+
+  return body.flatMap((item) => {
+    const mapped = mapActivitySummary(item as StravaActivityResponse);
+    return mapped ? [mapped] : [];
+  });
+}
+
+export async function getActivityById(
+  accessToken: string,
+  activityId: string,
+): Promise<StravaActivityDetails | null> {
+  const { ok, status, body } = await stravaGetJson(
+    accessToken,
+    `https://www.strava.com/api/v3/activities/${activityId}`,
+  );
+  if (status === 404) {
+    return null;
+  }
+  if (!ok) {
+    throw new StravaApiError("Strava activity request failed.", 502);
+  }
+  return mapActivityDetails(body as StravaActivityResponse);
 }

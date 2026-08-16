@@ -88,13 +88,31 @@ On Vercel, set `DATABASE_*` to the Supabase **session pooler** (port **5432**, u
 
 The Mini App must be opened inside Telegram so `initData` is present.
 
+## Admin activity sync
+
+`POST /api/admin/activities/sync` lists one user’s Strava activities after a date (`GET /api/v3/athlete/activities?after=`), loads each activity’s details for `description`, and upserts rows whose **title or description** contains (case-insensitive) `kruzh`, `circles`, `evgeny istyukov`, or `serge akhlebinin`.
+
+This is admin-only. Set at least one of:
+
+- `ADMIN_SECRET` — send `X-Admin-Secret` or `Authorization: Bearer …`
+- `ADMIN_TELEGRAM_USER_ID` — your Telegram id; the request must include valid Mini App `initData` for that account
+
+```bash
+curl -X POST https://<your-vercel-domain>/api/admin/activities/sync \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Secret: $ADMIN_SECRET" \
+  -d '{"telegramUserId":"123456789","after":1704067200,"page":1}'
+```
+
+`after` is Unix seconds (Strava’s parameter) or an ISO date. If `hasMore` is true, call again with `page + 1`. Apply the `CreateActivities` migration first.
+
 ## Project layout
 
 ```
 docs/migrations.md  How to create and apply TypeORM migrations
 public/             Static assets (logo)
 src/app/            Mini App routes and Route Handlers
-src/app/api/        Server APIs (`/me`, `/athlete`, Strava webhook and OAuth)
+src/app/api/        Server APIs (`/me`, `/athlete`, admin sync, Strava webhook and OAuth)
 src/app/stats/      Athlete landing after Strava is linked
 src/lib/db/         TypeORM data source, entities (`users`, `activities`), migrations
 src/lib/strava/     Strava webhook, OAuth, and athlete helpers
