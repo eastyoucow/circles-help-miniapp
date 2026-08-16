@@ -2,9 +2,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { Activity } from "./activity.entity";
 
 @Entity({ name: "users" })
 export class User {
@@ -42,4 +44,7 @@ export class User {
 
   @UpdateDateColumn({ type: "timestamptz", name: "updated_at" })
   updatedAt!: Date;
+
+  @OneToMany(() => Activity, (activity) => activity.user)
+  activities!: Activity[];
 }

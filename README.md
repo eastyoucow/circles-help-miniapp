@@ -96,7 +96,7 @@ public/             Static assets (logo)
 src/app/            Mini App routes and Route Handlers
 src/app/api/        Server APIs (`/me`, `/athlete`, Strava webhook and OAuth)
 src/app/stats/      Athlete landing after Strava is linked
-src/lib/db/         TypeORM data source, entities, migrations
+src/lib/db/         TypeORM data source, entities (`users`, `activities`), migrations
 src/lib/strava/     Strava webhook, OAuth, and athlete helpers
 src/lib/telegram/   Telegram initData verification
 ```
