@@ -8,7 +8,7 @@ The Mini App UI, Strava OAuth, Telegram/Strava webhooks, and server APIs will li
 
 - Next.js 16 (App Router) on Vercel
 - TypeScript
-- Tailwind CSS
+- CSS Modules
 - PostgreSQL on Supabase (not wired up yet)
 
 ## Local development

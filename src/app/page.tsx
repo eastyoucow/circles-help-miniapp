@@ -1,6 +1,8 @@
+import styles from "./page.module.css";
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center">
+    <main className={styles.main}>
       <h1>Circles Help</h1>
     </main>
   );
