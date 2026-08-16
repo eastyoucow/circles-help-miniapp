@@ -19,11 +19,11 @@ type SyncBody = {
 
 function parseAfter(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return Math.floor(value);
+    return toUnixSeconds(value);
   }
   if (typeof value === "string" && value.trim()) {
     if (/^\d+$/.test(value.trim())) {
-      return Number(value.trim());
+      return toUnixSeconds(Number(value.trim()));
     }
     const fromDate = Date.parse(value);
     if (Number.isFinite(fromDate)) {
@@ -31,6 +31,12 @@ function parseAfter(value: unknown): number | null {
     }
   }
   return null;
+}
+
+function toUnixSeconds(value: number): number {
+  const n = Math.floor(value);
+  // JS Date.now() is milliseconds (~1.7e12); Strava `after` is seconds (~1.7e9).
+  return n > 1_000_000_000_000 ? Math.floor(n / 1000) : n;
 }
 
 function parsePositiveInt(value: unknown): number | undefined {
@@ -107,11 +113,15 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    const status = error instanceof StravaApiError ? error.status : 502;
+    const status =
+      error instanceof StravaApiError && error.status >= 400 && error.status < 600
+        ? error.status
+        : 502;
     console.error("admin activity sync failed", error);
-    return NextResponse.json(
-      { error: "Could not sync Strava activities." },
-      { status: status === 401 ? 401 : 502 },
-    );
+    const message =
+      error instanceof StravaApiError
+        ? error.message
+        : "Could not sync Strava activities.";
+    return NextResponse.json({ error: message }, { status });
   }
 }

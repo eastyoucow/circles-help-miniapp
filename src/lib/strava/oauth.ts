@@ -7,7 +7,7 @@ import { optionalEnv, requiredEnv } from "@/lib/env";
 const STATE_TTL_MS = 10 * 60 * 1000;
 const STRAVA_AUTHORIZE_URL = "https://www.strava.com/oauth/authorize";
 const STRAVA_TOKEN_URL = "https://www.strava.com/api/v3/oauth/token";
-const STRAVA_SCOPES = "read,activity:read";
+const STRAVA_SCOPES = "read,activity:read,activity:read_all";
 
 export class StravaOAuthError extends Error {
   constructor(
@@ -149,7 +149,7 @@ export function buildStravaAuthorizeUrl(state: string): string {
   url.searchParams.set("client_id", requiredEnv("STRAVA_CLIENT_ID"));
   url.searchParams.set("redirect_uri", getStravaRedirectUri());
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("approval_prompt", "auto");
+  url.searchParams.set("approval_prompt", "force");
   url.searchParams.set("scope", STRAVA_SCOPES);
   url.searchParams.set("state", state);
   return url.toString();

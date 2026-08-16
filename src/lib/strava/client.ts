@@ -61,6 +61,36 @@ export class StravaApiError extends Error {
   }
 }
 
+function stravaErrorMessage(body: unknown, fallback: string): string {
+  if (!body || typeof body !== "object") {
+    return fallback;
+  }
+  const rec = body as { message?: unknown; errors?: unknown };
+  const parts: string[] = [];
+  if (typeof rec.message === "string" && rec.message.trim()) {
+    parts.push(rec.message.trim());
+  }
+  if (Array.isArray(rec.errors)) {
+    for (const item of rec.errors) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+      const err = item as {
+        resource?: unknown;
+        field?: unknown;
+        code?: unknown;
+      };
+      const detail = [err.resource, err.field, err.code]
+        .filter((value): value is string => typeof value === "string")
+        .join(" ");
+      if (detail) {
+        parts.push(detail);
+      }
+    }
+  }
+  return parts.join(": ") || fallback;
+}
+
 async function refreshStravaTokens(refreshToken: string): Promise<{
   accessToken: string;
   refreshToken: string;
@@ -262,9 +292,23 @@ export async function listAthleteActivities(
   url.searchParams.set("page", String(options.page));
   url.searchParams.set("per_page", String(options.perPage));
 
-  const { ok, body } = await stravaGetJson(accessToken, url.toString());
+  const { ok, status, body } = await stravaGetJson(accessToken, url.toString());
   if (!ok || !Array.isArray(body)) {
-    throw new StravaApiError("Strava activity list request failed.", 502);
+    console.error("strava athlete activities failed", {
+      status,
+      after: options.after,
+      page: options.page,
+      perPage: options.perPage,
+      body,
+    });
+    const message = stravaErrorMessage(
+      body,
+      "Strava activity list request failed.",
+    );
+    const withHint = /activity:read/i.test(message)
+      ? `${message} Re-link Strava in the Mini App and keep activity access checked.`
+      : message;
+    throw new StravaApiError(withHint, ok ? 502 : status);
   }
 
   return body.flatMap((item) => {
@@ -285,7 +329,11 @@ export async function getActivityById(
     return null;
   }
   if (!ok) {
-    throw new StravaApiError("Strava activity request failed.", 502);
+    console.error("strava activity by id failed", { status, activityId, body });
+    throw new StravaApiError(
+      stravaErrorMessage(body, "Strava activity request failed."),
+      status,
+    );
   }
   return mapActivityDetails(body as StravaActivityResponse);
 }
