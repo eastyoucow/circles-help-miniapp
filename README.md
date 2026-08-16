@@ -54,7 +54,7 @@ https://<your-vercel-domain>/api/strava/webhook
 ```
 
 - `GET` confirms a subscription: checks `hub.verify_token` against `STRAVA_WEBHOOK_VERIFY_TOKEN` and echoes `hub.challenge`.
-- `POST` receives activity/athlete events and acknowledges them. Event processing (notifications, revoke/`isDeleted`) is not implemented yet.
+- `POST` receives activity/athlete events. For **activity create** and **activity update**, the server loads `GET /api/v3/activities/{id}` with that athlete’s stored tokens and upserts the row if title or description matches the same phrases as admin sync (`kruzh`, `circles`, `evgeny istyukov`, `serge akhlebinin`). An update that no longer matches is removed. Activity **delete** removes the row. Athlete events (including revoke) are ignored for now.
 
 Create the subscription (one per Strava app) after the app is live:
 

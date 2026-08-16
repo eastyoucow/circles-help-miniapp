@@ -33,3 +33,11 @@ export async function upsertActivity(fields: ActivityFields): Promise<"inserted"
   await repo.save(repo.create(fields));
   return "inserted";
 }
+
+export async function deleteActivityByStravaId(
+  stravaActivityId: string,
+): Promise<boolean> {
+  const repo = (await getDataSource()).getRepository(Activity);
+  const result = await repo.delete({ stravaActivityId });
+  return (result.affected ?? 0) > 0;
+}

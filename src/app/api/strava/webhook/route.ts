@@ -7,6 +7,7 @@ import {
 } from "@/lib/strava/webhook";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
