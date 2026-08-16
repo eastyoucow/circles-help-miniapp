@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { requiredEnv } from "@/lib/env";
 
 const IV_LENGTH = 12;
@@ -17,9 +17,7 @@ export function getTokenEncryptionKey(): Buffer {
     return fromBase64;
   }
 
-  throw new Error(
-    "TOKEN_ENCRYPTION_KEY must be 32 bytes as 64-char hex or base64.",
-  );
+  return createHash("sha256").update(raw).digest();
 }
 
 export function encryptSecret(plaintext: string): string {

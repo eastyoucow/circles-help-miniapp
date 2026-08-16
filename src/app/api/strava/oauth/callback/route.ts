@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import {
+  getOAuthPublicCode,
   readOAuthState,
   saveStravaUser,
-  StravaOAuthError,
 } from "@/lib/strava/oauth";
 
 export const runtime = "nodejs";
@@ -29,19 +29,18 @@ export async function GET(request: Request) {
   try {
     telegramUserId = readOAuthState(url.searchParams.get("state"));
   } catch (error) {
-    const codeName =
-      error instanceof StravaOAuthError ? error.publicCode : "invalid_state";
+    const codeName = getOAuthPublicCode(error) ?? "invalid_state";
     return redirectHome(request, codeName);
   }
 
   try {
     await saveStravaUser(telegramUserId, code);
   } catch (error) {
-    if (error instanceof StravaOAuthError) {
-      return redirectHome(request, error.publicCode);
+    const publicCode = getOAuthPublicCode(error) ?? "server";
+    if (publicCode === "server") {
+      console.error("strava oauth callback failed", error);
     }
-    console.error("strava oauth callback failed", error);
-    return redirectHome(request, "server");
+    return redirectHome(request, publicCode);
   }
 
   return redirectHome(request, "connected");

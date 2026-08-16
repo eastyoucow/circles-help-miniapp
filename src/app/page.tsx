@@ -25,6 +25,14 @@ const STRAVA_STATUS: Record<string, { text: string; ok: boolean }> = {
     text: "Strava did not return an authorization code.",
     ok: false,
   },
+  config: {
+    text: "Server is missing Strava or encryption settings.",
+    ok: false,
+  },
+  database: {
+    text: "Could not reach the database. Check Supabase connection settings.",
+    ok: false,
+  },
   server: { text: "Could not save the Strava connection. Try again.", ok: false },
 };
 

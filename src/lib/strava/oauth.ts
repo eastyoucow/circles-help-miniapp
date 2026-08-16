@@ -1,5 +1,4 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { QueryFailedError } from "typeorm";
 import { encryptSecret } from "@/lib/crypto/token-encryption";
 import { getDataSource } from "@/lib/db/connection";
 import { User } from "@/lib/db/entities/user.entity";
@@ -7,7 +6,7 @@ import { optionalEnv, requiredEnv } from "@/lib/env";
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 const STRAVA_AUTHORIZE_URL = "https://www.strava.com/oauth/authorize";
-const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
+const STRAVA_TOKEN_URL = "https://www.strava.com/api/v3/oauth/token";
 const STRAVA_SCOPES = "read,activity:read";
 
 export class StravaOAuthError extends Error {
@@ -19,11 +18,52 @@ export class StravaOAuthError extends Error {
       | "token_exchange"
       | "conflict"
       | "missing_code"
+      | "config"
+      | "database"
       | "server",
   ) {
     super(message);
     this.name = "StravaOAuthError";
   }
+}
+
+const OAUTH_PUBLIC_CODES = [
+  "denied",
+  "invalid_state",
+  "token_exchange",
+  "conflict",
+  "missing_code",
+  "config",
+  "database",
+  "server",
+] as const;
+
+export function getOAuthPublicCode(
+  error: unknown,
+): StravaOAuthError["publicCode"] | undefined {
+  let current: unknown = error;
+  for (let i = 0; i < 5 && current; i += 1) {
+    if (typeof current === "object" && current !== null) {
+      const code = (current as { publicCode?: unknown }).publicCode;
+      if (
+        typeof code === "string" &&
+        (OAUTH_PUBLIC_CODES as readonly string[]).includes(code)
+      ) {
+        return code as StravaOAuthError["publicCode"];
+      }
+    }
+    current =
+      typeof current === "object" &&
+      current !== null &&
+      "cause" in current
+        ? (current as { cause: unknown }).cause
+        : undefined;
+  }
+  return undefined;
+}
+
+export function isStravaOAuthError(error: unknown): error is StravaOAuthError {
+  return getOAuthPublicCode(error) !== undefined;
 }
 
 type OAuthStatePayload = {
@@ -101,7 +141,7 @@ export function readOAuthState(state: string | null): string {
 }
 
 export function getStravaRedirectUri(): string {
-  return requiredEnv("STRAVA_OAUTH_REDIRECT_URI");
+  return requiredEnv("STRAVA_OAUTH_REDIRECT_URI").replace(/\/+$/, "");
 }
 
 export function buildStravaAuthorizeUrl(state: string): string {
@@ -129,12 +169,13 @@ async function exchangeStravaCode(code: string): Promise<{
 }> {
   const response = await fetch(STRAVA_TOKEN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
       client_id: requiredEnv("STRAVA_CLIENT_ID"),
       client_secret: requiredEnv("STRAVA_CLIENT_SECRET"),
       code,
       grant_type: "authorization_code",
+      redirect_uri: getStravaRedirectUri(),
     }),
   });
 
@@ -148,12 +189,15 @@ async function exchangeStravaCode(code: string): Promise<{
     );
   }
 
+  const athleteId = body.athlete?.id;
+  const expiresAt = Number(body.expires_at);
   if (
     !response.ok ||
     !body.access_token ||
     !body.refresh_token ||
-    !body.expires_at ||
-    !body.athlete?.id
+    !Number.isFinite(expiresAt) ||
+    athleteId === undefined ||
+    athleteId === null
   ) {
     throw new StravaOAuthError(
       "Strava token exchange failed.",
@@ -164,29 +208,117 @@ async function exchangeStravaCode(code: string): Promise<{
   return {
     accessToken: body.access_token,
     refreshToken: body.refresh_token,
-    expiresAt: new Date(body.expires_at * 1000),
-    athleteId: String(body.athlete.id),
-    firstName: truncateName(body.athlete.firstname) || "Athlete",
-    lastName: truncateName(body.athlete.lastname),
+    expiresAt: new Date(expiresAt * 1000),
+    athleteId: String(athleteId),
+    firstName: truncateName(body.athlete?.firstname) || "Athlete",
+    lastName: truncateName(body.athlete?.lastname),
   };
 }
 
-function isUniqueViolation(error: unknown): boolean {
-  if (!(error instanceof QueryFailedError)) {
-    return false;
+function collectErrorText(error: unknown, depth = 0): string {
+  if (error == null || depth > 5) {
+    return "";
   }
-  const driverError = error.driverError as { code?: string } | undefined;
-  return driverError?.code === "23505";
+  if (typeof error === "string") {
+    return error;
+  }
+  if (typeof error !== "object") {
+    return String(error);
+  }
+
+  const parts: string[] = [];
+  const rec = error as {
+    name?: unknown;
+    message?: unknown;
+    code?: unknown;
+    driverError?: unknown;
+    cause?: unknown;
+    errors?: unknown;
+  };
+  if (typeof rec.name === "string") {
+    parts.push(rec.name);
+  }
+  if (typeof rec.message === "string") {
+    parts.push(rec.message);
+  }
+  if (rec.code != null) {
+    parts.push(String(rec.code));
+  }
+  if (rec.driverError) {
+    parts.push(collectErrorText(rec.driverError, depth + 1));
+  }
+  if (rec.cause) {
+    parts.push(collectErrorText(rec.cause, depth + 1));
+  }
+  if (Array.isArray(rec.errors)) {
+    for (const inner of rec.errors) {
+      parts.push(collectErrorText(inner, depth + 1));
+    }
+  }
+  return parts.filter(Boolean).join(" ");
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  const text = collectErrorText(error);
+  if (/\b23505\b/.test(text) || /unique constraint/i.test(text)) {
+    return true;
+  }
+  const withDriver = error as { driverError?: { code?: string }; code?: string };
+  return withDriver.driverError?.code === "23505" || withDriver.code === "23505";
+}
+
+function rethrowKnown(error: unknown): never {
+  if (isStravaOAuthError(error)) {
+    throw error;
+  }
+
+  const message = collectErrorText(error) || "Unknown OAuth save error";
+  console.error("strava oauth save failed", message, error);
+
+  if (
+    message.includes("is not set") ||
+    /TOKEN_ENCRYPTION_KEY|STRAVA_CLIENT_|STRAVA_OAUTH_REDIRECT_URI/i.test(
+      message,
+    )
+  ) {
+    throw new StravaOAuthError(message, "config");
+  }
+  if (
+    /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|ECONNRESET|EAI_AGAIN|getaddrinfo|AggregateError|timeout expired|Connection terminated|no pg_hba|self.signed|SASL|password authentication failed|DATABASE_|relation ".*?" does not exist|column ".*?" does not exist|Postgres package|DriverPackageNotInstalled|Unable to connect to the database|connect ENO|ssl/i.test(
+      message,
+    )
+  ) {
+    throw new StravaOAuthError(message, "database");
+  }
+  throw new StravaOAuthError(message, "server");
 }
 
 export async function saveStravaUser(
   telegramUserId: string,
   code: string,
 ): Promise<void> {
-  const tokens = await exchangeStravaCode(code);
-  const accessEncrypted = encryptSecret(tokens.accessToken);
-  const refreshEncrypted = encryptSecret(tokens.refreshToken);
-  const dataSource = await getDataSource();
+  let tokens: Awaited<ReturnType<typeof exchangeStravaCode>>;
+  try {
+    tokens = await exchangeStravaCode(code);
+  } catch (error) {
+    rethrowKnown(error);
+  }
+
+  let accessEncrypted: string;
+  let refreshEncrypted: string;
+  try {
+    accessEncrypted = encryptSecret(tokens.accessToken);
+    refreshEncrypted = encryptSecret(tokens.refreshToken);
+  } catch (error) {
+    rethrowKnown(error);
+  }
+
+  let dataSource;
+  try {
+    dataSource = await getDataSource();
+  } catch (error) {
+    rethrowKnown(error);
+  }
 
   try {
     await dataSource.transaction(async (manager) => {
@@ -222,7 +354,7 @@ export async function saveStravaUser(
       await users.save(user);
     });
   } catch (error) {
-    if (error instanceof StravaOAuthError) {
+    if (isStravaOAuthError(error)) {
       throw error;
     }
     if (isUniqueViolation(error)) {
@@ -231,6 +363,6 @@ export async function saveStravaUser(
         "conflict",
       );
     }
-    throw error;
+    rethrowKnown(error);
   }
 }
