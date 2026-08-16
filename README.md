@@ -45,11 +45,36 @@ If you already created the project with Output Directory `public`, turn that ove
 
 Hobby is enough for OAuth callbacks and webhooks. Do not use long polling or long-running workers on Vercel.
 
+## Strava webhook
+
+Callback URL (after deploy):
+
+```text
+https://<your-vercel-domain>/api/strava/webhook
+```
+
+- `GET` confirms a subscription: checks `hub.verify_token` against `STRAVA_WEBHOOK_VERIFY_TOKEN` and echoes `hub.challenge`.
+- `POST` receives activity/athlete events. Unknown athletes are ignored. If Strava revokes access, the matching `users` row is deleted.
+
+Create the subscription (one per Strava app) after the app is live:
+
+```bash
+curl -X POST https://www.strava.com/api/v3/push_subscriptions \
+  -F client_id="$STRAVA_CLIENT_ID" \
+  -F client_secret="$STRAVA_CLIENT_SECRET" \
+  -F callback_url="https://<your-vercel-domain>/api/strava/webhook" \
+  -F verify_token="$STRAVA_WEBHOOK_VERIFY_TOKEN"
+```
+
+See [Strava webhooks](https://developers.strava.com/docs/webhooks/).
+
 ## Project layout
 
 ```
 docs/migrations.md  How to create and apply TypeORM migrations
 public/             Static assets (logo)
 src/app/            Mini App routes and Route Handlers
+src/app/api/        Server APIs (Strava webhook)
 src/lib/db/         TypeORM data source, entities, migrations
+src/lib/strava/     Strava webhook helpers
 ```
