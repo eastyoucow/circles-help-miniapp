@@ -1,11 +1,10 @@
-import { upsertActivity } from "@/lib/db/activities";
 import { User } from "@/lib/db/entities/user.entity";
-import { activityMatchesInitiative } from "@/lib/strava/activity-match";
 import {
   getActivityById,
   listAthleteActivities,
   withStravaUserToken,
 } from "@/lib/strava/client";
+import { storeActivityIfMatches } from "@/lib/strava/store-activity";
 
 const DEFAULT_PER_PAGE = 30;
 const MAX_PER_PAGE = 50;
@@ -54,22 +53,13 @@ export async function syncUserActivitiesAfter(options: {
       continue;
     }
 
-    if (!activityMatchesInitiative(details.title, details.description)) {
+    const result = await storeActivityIfMatches(options.user, details);
+    if (result === "skipped") {
       skipped += 1;
       continue;
     }
 
     matched += 1;
-    const result = await upsertActivity({
-      userId: options.user.id,
-      stravaActivityId: details.id,
-      title: details.title,
-      description: details.description,
-      activityDate: details.activityDate,
-      distance: details.distance,
-      movingTime: details.movingTime,
-      workoutType: details.workoutType,
-    });
     if (result === "inserted") {
       inserted += 1;
     } else {

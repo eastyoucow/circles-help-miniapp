@@ -10,6 +10,15 @@ export async function findUserByTelegramId(
   });
 }
 
+export async function findUserByStravaAthleteId(
+  stravaAthleteId: string,
+): Promise<User | null> {
+  const dataSource = await getDataSource();
+  return dataSource.getRepository(User).findOne({
+    where: { stravaAthleteId },
+  });
+}
+
 export async function saveUser(user: User): Promise<User> {
   const dataSource = await getDataSource();
   return dataSource.getRepository(User).save(user);

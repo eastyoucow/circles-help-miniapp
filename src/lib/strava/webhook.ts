@@ -1,4 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
+import { deleteActivityByStravaId } from "@/lib/db/activities";
+import { findUserByStravaAthleteId } from "@/lib/db/users";
+import {
+  getActivityById,
+  withStravaUserToken,
+} from "@/lib/strava/client";
+import { storeActivityIfMatches } from "@/lib/strava/store-activity";
 
 export type StravaWebhookEvent = {
   object_type: "activity" | "athlete";
@@ -92,6 +99,38 @@ export function parseStravaWebhookEvent(
 export async function processStravaWebhookEvent(
   event: StravaWebhookEvent,
 ): Promise<void> {
-  void event;
-  // Activity notifications and access-revoke handling (e.g. isDeleted) come later.
+  if (event.object_type !== "activity") {
+    return;
+  }
+
+  const stravaActivityId = String(event.object_id);
+
+  if (event.aspect_type === "delete") {
+    await deleteActivityByStravaId(stravaActivityId);
+    return;
+  }
+
+  const user = await findUserByStravaAthleteId(String(event.owner_id));
+  if (!user) {
+    return;
+  }
+
+  const details = await withStravaUserToken(user, (token) =>
+    getActivityById(token, stravaActivityId),
+  );
+
+  if (!details) {
+    if (event.aspect_type === "create") {
+      throw new Error(
+        `Strava activity ${stravaActivityId} is not available yet.`,
+      );
+    }
+    await deleteActivityByStravaId(stravaActivityId);
+    return;
+  }
+
+  const result = await storeActivityIfMatches(user, details);
+  if (result === "skipped" && event.aspect_type === "update") {
+    await deleteActivityByStravaId(stravaActivityId);
+  }
 }
