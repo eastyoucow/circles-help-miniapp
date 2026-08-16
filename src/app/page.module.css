@@ -37,6 +37,28 @@
   cursor: pointer;
 }
 
+.button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.statusOk,
+.statusError {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.statusOk {
+  color: #0a2540;
+}
+
+.statusError {
+  color: #ef233c;
+}
+
 .strava {
   background: #0a2540;
   color: #ffffff;

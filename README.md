@@ -68,13 +68,28 @@ curl -X POST https://www.strava.com/api/v3/push_subscriptions \
 
 See [Strava webhooks](https://developers.strava.com/docs/webhooks/).
 
+## Strava OAuth
+
+**Link Strava** sends Telegram `initData` to `POST /api/strava/oauth/start`, then redirects to Strava. After the user authorizes, Strava returns to:
+
+```text
+https://<your-vercel-domain>/api/strava/oauth/callback
+```
+
+The callback exchanges the code, encrypts tokens, and inserts or updates the `users` row keyed by Telegram user id.
+
+In the [Strava API settings](https://www.strava.com/settings/api), set **Authorization Callback Domain** to the Vercel host only (`your-app.vercel.app`, no `https://` and no path). Set `STRAVA_OAUTH_REDIRECT_URI` to the full callback URL above. `TOKEN_ENCRYPTION_KEY` must be 32 bytes (64-char hex or base64).
+
+The Mini App must be opened inside Telegram so `initData` is present.
+
 ## Project layout
 
 ```
 docs/migrations.md  How to create and apply TypeORM migrations
 public/             Static assets (logo)
 src/app/            Mini App routes and Route Handlers
-src/app/api/        Server APIs (Strava webhook)
+src/app/api/        Server APIs (Strava webhook and OAuth)
 src/lib/db/         TypeORM data source, entities, migrations
-src/lib/strava/     Strava webhook helpers
+src/lib/strava/     Strava webhook and OAuth helpers
+src/lib/telegram/   Telegram initData verification
 ```

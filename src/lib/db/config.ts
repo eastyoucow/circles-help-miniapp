@@ -1,22 +1,13 @@
 import { existsSync } from "node:fs";
 import { config } from "dotenv";
 import type { DataSourceOptions } from "typeorm";
+import { requiredEnv } from "../env";
 import { User } from "./entities/user.entity";
 
 if (existsSync(".env.local")) {
   config({ path: ".env.local", quiet: true });
 } else if (existsSync(".env")) {
   config({ path: ".env", quiet: true });
-}
-
-function requiredEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(
-      `${name} is not set. Copy .env.example to .env.local and add the Supabase Postgres fields. See docs/migrations.md.`,
-    );
-  }
-  return value;
 }
 
 function getDatabasePort(): number {

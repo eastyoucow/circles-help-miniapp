@@ -1,11 +1,41 @@
 import Image from "next/image";
+import { LinkStravaButton } from "./LinkStravaButton";
 import styles from "./page.module.css";
 
 const DONATE_URL =
   "https://payments.evoca.am/en/redirect/06B9FD02-032D-4956-A0A3-A2ED9352C409?v3=1660078599694900&a=0";
 const ABOUT_URL = "https://lc.cx/circles-help";
 
-export default function Home() {
+const STRAVA_STATUS: Record<string, { text: string; ok: boolean }> = {
+  connected: { text: "Strava is connected.", ok: true },
+  denied: { text: "Strava authorization was cancelled.", ok: false },
+  invalid_state: {
+    text: "The authorization session expired. Try again.",
+    ok: false,
+  },
+  token_exchange: {
+    text: "Strava did not return tokens. Try again.",
+    ok: false,
+  },
+  conflict: {
+    text: "That Strava account is already linked to another user.",
+    ok: false,
+  },
+  missing_code: {
+    text: "Strava did not return an authorization code.",
+    ok: false,
+  },
+  server: { text: "Could not save the Strava connection. Try again.", ok: false },
+};
+
+type HomeProps = {
+  searchParams: Promise<{ strava?: string }>;
+};
+
+export default async function Home({ searchParams }: HomeProps) {
+  const params = await searchParams;
+  const status = params.strava ? STRAVA_STATUS[params.strava] : undefined;
+
   return (
     <main className={styles.main}>
       <h1 className={styles.srOnly}>Circles Help</h1>
@@ -18,9 +48,12 @@ export default function Home() {
         priority
       />
       <div className={styles.actions}>
-        <button type="button" className={`${styles.button} ${styles.strava}`}>
-          Link Strava
-        </button>
+        {status ? (
+          <p className={status.ok ? styles.statusOk : styles.statusError}>
+            {status.text}
+          </p>
+        ) : null}
+        <LinkStravaButton />
         <a
           className={`${styles.button} ${styles.donate}`}
           href={DONATE_URL}
