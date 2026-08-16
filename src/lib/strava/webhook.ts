@@ -90,7 +90,8 @@ export function parseStravaWebhookEvent(
 }
 
 export async function processStravaWebhookEvent(
-  _event: StravaWebhookEvent,
+  event: StravaWebhookEvent,
 ): Promise<void> {
+  void event;
   // Activity notifications and access-revoke handling (e.g. isDeleted) come later.
 }
