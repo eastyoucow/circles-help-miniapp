@@ -46,5 +46,6 @@ Hobby is enough for OAuth callbacks and webhooks. Do not use long polling or lon
 ## Project layout
 
 ```
+public/           Static assets (logo)
 src/app/          Mini App routes and Route Handlers
 ```
