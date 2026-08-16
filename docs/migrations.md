@@ -4,23 +4,25 @@ This app uses [TypeORM](https://typeorm.io) against the Supabase Postgres databa
 
 The Mini App never talks to the database. Only server-side Next.js code and these CLI commands do.
 
-## 1. Get a connection string
+## 1. Get connection fields
 
 In the [Supabase dashboard](https://supabase.com/dashboard):
 
 1. Open the project.
 2. Go to **Project Settings → Database**.
-3. Copy the **URI** for the **direct connection** (host `db.<project-ref>.supabase.co`, **port 5432**).
+3. Use the **direct connection** host (`db.<project-ref>.supabase.co`) and **port 5432**.
 
-Use that URI for migrations. The transaction pooler (port **6543**) is for short queries and can fail TypeORM migrations (advisory locks).
+Do not use the transaction pooler (port **6543**) for migrations. It can fail TypeORM advisory locks.
 
-Example:
+Typical values:
 
-```bash
-postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
-```
-
-If the password has special characters, URL-encode them (`@` → `%40`, `#` → `%23`).
+| Field | Example |
+|---|---|
+| Host | `db.<project-ref>.supabase.co` |
+| Port | `5432` |
+| Database | `postgres` |
+| User | `postgres` |
+| Password | the database password from the same settings page |
 
 ## 2. Set environment variables
 
@@ -32,7 +34,11 @@ Set:
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Postgres URI above |
+| `DATABASE_HOST` | Postgres host |
+| `DATABASE_PORT` | Postgres port (`5432` for direct / migrations) |
+| `DATABASE_NAME` | Database name (`postgres` on Supabase) |
+| `DATABASE_USER` | Role (`postgres` or another owner role) |
+| `DATABASE_PASSWORD` | Database password (no URL encoding needed) |
 | `DATABASE_SSL` | Leave unset (SSL on). Set `false` only for a local Postgres without SSL |
 | `TYPEORM_LOGGING` | Set `true` to log SQL |
 
@@ -77,7 +83,7 @@ TypeORM writes `src/lib/db/migrations/<timestamp>-AddSomething.ts`. Fill in `up`
 npm run migration:generate -- src/lib/db/migrations/AddSomething
 ```
 
-This needs a working `DATABASE_URL` and compares entities to the current schema. Review the generated SQL before applying.
+This needs a working database connection and compares entities to the current schema. Review the generated SQL before applying.
 
 ## 5. Run and revert
 
@@ -99,11 +105,11 @@ npm run migration:revert
 
 ## Troubleshooting
 
-**`DATABASE_URL is not set`**  
-Create `.env.local` and add the URI. Run commands from the repo root.
+**`DATABASE_HOST is not set` (or another `DATABASE_*` field)**  
+Create `.env.local` and set host, port, name, user, and password. Run commands from the repo root.
 
 **`no pg_hba.conf entry` / SSL error**  
-Keep `?sslmode=require` on the URI. Do not set `DATABASE_SSL=false` against Supabase.
+Keep SSL on (do not set `DATABASE_SSL=false` against Supabase).
 
 **Migration hangs or `must be owner of table`**  
 Use the direct connection (port 5432), not the transaction pooler (6543). Use the `postgres` role (or another role that owns the tables).
