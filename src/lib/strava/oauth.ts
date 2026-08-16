@@ -80,6 +80,7 @@ type StravaTokenResponse = {
     id?: number;
     firstname?: string;
     lastname?: string;
+    profile?: string;
   };
 };
 
@@ -159,6 +160,10 @@ function truncateName(value: string | undefined): string {
   return (value ?? "").trim().slice(0, 100);
 }
 
+function profileImageUrl(value: string | undefined): string {
+  return (value ?? "").trim().slice(0, 2048);
+}
+
 async function exchangeStravaCode(code: string): Promise<{
   accessToken: string;
   refreshToken: string;
@@ -166,6 +171,7 @@ async function exchangeStravaCode(code: string): Promise<{
   athleteId: string;
   firstName: string;
   lastName: string;
+  profileImageUrl: string;
 }> {
   const response = await fetch(STRAVA_TOKEN_URL, {
     method: "POST",
@@ -212,6 +218,7 @@ async function exchangeStravaCode(code: string): Promise<{
     athleteId: String(athleteId),
     firstName: truncateName(body.athlete?.firstname) || "Athlete",
     lastName: truncateName(body.athlete?.lastname),
+    profileImageUrl: profileImageUrl(body.athlete?.profile),
   };
 }
 
@@ -348,6 +355,7 @@ export async function saveStravaUser(
       user.stravaAthleteId = tokens.athleteId;
       user.firstName = tokens.firstName;
       user.lastName = tokens.lastName;
+      user.profileImageUrl = tokens.profileImageUrl;
       user.stravaAccessTokenEncrypted = accessEncrypted;
       user.stravaRefreshTokenEncrypted = refreshEncrypted;
       user.stravaTokenExpiresAt = tokens.expiresAt;

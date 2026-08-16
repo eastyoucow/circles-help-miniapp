@@ -30,6 +30,10 @@ export class User {
   })
   lastName!: string;
 
+  /** Strava athlete `profile` image URL. */
+  @Column({ type: "text", name: "profile_image_url", default: "" })
+  profileImageUrl!: string;
+
   @Column({ type: "text", name: "strava_access_token_encrypted" })
   stravaAccessTokenEncrypted!: string;
 
