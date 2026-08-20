@@ -1,5 +1,6 @@
 export const ACTIVITY_MATCH_PHRASES = [
   "kruzh",
+  "круж",
   "circles",
   "evgeny istyukov",
   "serge akhlebinin",
