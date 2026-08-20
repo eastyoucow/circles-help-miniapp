@@ -24,6 +24,13 @@ export async function saveUser(user: User): Promise<User> {
   return dataSource.getRepository(User).save(user);
 }
 
+export async function listUsers(): Promise<User[]> {
+  const dataSource = await getDataSource();
+  return dataSource.getRepository(User).find({
+    order: { createdAt: "ASC" },
+  });
+}
+
 export type UserActivityStats = {
   id: string;
   firstName: string;
