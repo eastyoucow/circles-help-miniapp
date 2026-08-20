@@ -1,5 +1,7 @@
+import { listUsers } from "@/lib/db/users";
 import { User } from "@/lib/db/entities/user.entity";
 import {
+  StravaApiError,
   getActivityById,
   listAthleteActivities,
   withStravaUserToken,
@@ -86,4 +88,99 @@ export function clampActivityPageSize(value: number | undefined): number {
     return DEFAULT_PER_PAGE;
   }
   return Math.min(MAX_PER_PAGE, Math.max(1, value));
+}
+
+const MAX_PAGES_PER_USER = 20;
+
+export type SyncAllUsersResult = {
+  after: number;
+  users: number;
+  failed: number;
+  scanned: number;
+  matched: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: { telegramUserId: string; error: string }[];
+};
+
+export async function syncAllUsersActivitiesAfter(
+  after: number,
+): Promise<SyncAllUsersResult> {
+  const users = await listUsers();
+  const totals: SyncAllUsersResult = {
+    after,
+    users: users.length,
+    failed: 0,
+    scanned: 0,
+    matched: 0,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  for (const user of users) {
+    try {
+      const result = await syncUserAllPages(user, after);
+      totals.scanned += result.scanned;
+      totals.matched += result.matched;
+      totals.inserted += result.inserted;
+      totals.updated += result.updated;
+      totals.skipped += result.skipped;
+    } catch (error) {
+      totals.failed += 1;
+      totals.errors.push({
+        telegramUserId: user.telegramUserId,
+        error:
+          error instanceof StravaApiError
+            ? error.message
+            : "Could not sync Strava activities.",
+      });
+      console.error(
+        "activity sync failed for user",
+        user.telegramUserId,
+        error,
+      );
+    }
+  }
+
+  return totals;
+}
+
+async function syncUserAllPages(
+  user: User,
+  after: number,
+): Promise<
+  Pick<
+    SyncActivitiesResult,
+    "scanned" | "matched" | "inserted" | "updated" | "skipped"
+  >
+> {
+  const totals = {
+    scanned: 0,
+    matched: 0,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+  };
+
+  for (let page = 1; page <= MAX_PAGES_PER_USER; page += 1) {
+    const result = await syncUserActivitiesAfter({
+      user,
+      after,
+      page,
+      perPage: MAX_PER_PAGE,
+    });
+    totals.scanned += result.scanned;
+    totals.matched += result.matched;
+    totals.inserted += result.inserted;
+    totals.updated += result.updated;
+    totals.skipped += result.skipped;
+    if (!result.hasMore) {
+      break;
+    }
+  }
+
+  return totals;
 }

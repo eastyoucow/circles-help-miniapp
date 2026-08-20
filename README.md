@@ -106,13 +106,32 @@ curl -X POST https://<your-vercel-domain>/api/admin/activities/sync \
 
 `after` is Unix seconds (Strava’s parameter) or an ISO date. If `hasMore` is true, call again with `page + 1`. Apply the `CreateActivities` migration first.
 
+## Nightly activity cron
+
+Vercel Cron is a **production GET** to a Route Handler. It is declared in `vercel.json` and does not run on preview deploys.
+
+`GET /api/cron/activities` loads every linked user, lists Strava activities from the last 24 hours, and upserts rows that match the same phrases as admin sync / webhooks. One user failing does not stop the others.
+
+Schedule: `0 20 * * *` (20:00 UTC, midnight in Armenia UTC+4). Hobby jobs may fire anytime in that hour, and Hobby functions are limited to about 10 seconds — use Pro if many athletes need to sync in one run.
+
+1. In the Vercel project, add `CRON_SECRET` (random, ≥16 characters) for Production.
+2. Merge this change and wait for a **production** deploy.
+3. Confirm the job under Vercel → Project → Cron Jobs.
+
+Vercel sends `Authorization: Bearer <CRON_SECRET>`. You can also call it by hand with `ADMIN_SECRET`:
+
+```bash
+curl -sS "https://<your-vercel-domain>/api/cron/activities" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
 ## Project layout
 
 ```
 docs/migrations.md  How to create and apply TypeORM migrations
 public/             Static assets (logo)
 src/app/            Mini App routes and Route Handlers
-src/app/api/        Server APIs (`/me`, `/dashboard`, `/athlete`, admin sync, Strava webhook and OAuth)
+src/app/api/        Server APIs (`/me`, `/dashboard`, `/athlete`, admin sync, nightly cron, Strava webhook and OAuth)
 src/app/dashboard/  Signed-in athlete dashboard and leaderboard
 src/lib/db/         TypeORM data source, entities (`users`, `activities`), migrations
 src/lib/strava/     Strava webhook, OAuth, and athlete helpers
